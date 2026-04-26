@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a6b3a">
+<title>HSA · Operações</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0F1117;--surf:#1a1d27;--surf2:#22263a;--border:#2d3250;
+  --text:#e8eaf0;--muted:#6b7280;--accent:#1a6b3a;--accent2:#2a9d5c;
+  --green:#34C77B;--red:#F05252;--yellow:#F0B429;--blue:#5B8DEF;
+  --in:#1a3a6b;--out:#6b1a1a;--cafe:#1a4a2a;--cafeout:#4a2a6b;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:13px;min-height:100vh}
+
+/* Senha */
+#senha-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.senha-box{background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:40px;width:320px;text-align:center}
+.senha-box h1{font-size:28px;color:var(--accent2);margin-bottom:8px}
+.senha-box p{color:var(--muted);font-size:13px;margin-bottom:24px}
+.senha-box input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surf2);color:var(--text);font-size:14px;outline:none;margin-bottom:12px;text-align:center;letter-spacing:2px}
+.senha-box button{width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.senha-box .erro{color:var(--red);font-size:12px;margin-top:8px}
+
+/* Loading */
+#loading-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:9990;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+.spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-msg{color:var(--muted);font-size:14px}
+
+/* Header */
+header{background:var(--surf);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.header-title{font-size:18px;font-weight:700;color:var(--text)}
+.header-sub{font-size:11px;color:var(--muted)}
+.header-status{margin-left:auto;font-size:11px;color:var(--muted);background:var(--surf2);padding:4px 10px;border-radius:8px}
+
+/* Nav meses */
+.mes-nav{background:var(--surf);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:8px;overflow-x:auto}
+.mes-nav button{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px;white-space:nowrap;transition:all .2s}
+.mes-nav button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mes-nav .nav-arrow{padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:14px}
+
+/* Legenda */
+.legenda{padding:10px 20px;display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.leg-dot{width:12px;height:12px;border-radius:3px}
+
+/* Grade */
+.grade-wrap{overflow-x:auto;padding:16px 20px}
+table.grade{border-collapse:collapse;min-width:100%}
+table.grade th{background:var(--surf);border:1px solid var(--border);padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;position:sticky;top:0}
+table.grade th.dia-hoje{background:rgba(52,199,123,.15);color:var(--green)}
+table.grade th.dia-col{min-width:130px;text-align:center}
+table.grade th.chale-col{min-width:120px;text-align:left;position:sticky;left:0;background:var(--surf);z-index:10;box-shadow:2px 0 6px rgba(0,0,0,.3)}
+table.grade td{border:1px solid var(--border);vertical-align:top;padding:0}
+table.grade td.chale-name{padding:8px 10px;font-weight:700;font-size:12px;background:var(--surf2);position:sticky;left:0;z-index:5;white-space:nowrap;box-shadow:2px 0 6px rgba(0,0,0,.3);min-width:120px}
+table.grade td.dia-cell{padding:0;min-width:130px;vertical-align:top}
+table.grade td.dia-cell.vazio{background:var(--bg)}
+table.grade td.dia-cell.hoje{background:rgba(52,199,123,.04)}
+
+/* Células de reserva */
+.res-cell{padding:5px 7px;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .15s}
+.res-cell:last-child{border-bottom:none}
+.res-cell:hover{opacity:.85}
+.res-cell.tipo-in{background:rgba(26,58,107,.6);border-left:3px solid #5B8DEF}
+.res-cell.tipo-out{background:rgba(107,26,26,.5);border-left:3px solid var(--red)}
+.res-cell.tipo-cafe{background:rgba(26,74,42,.5);border-left:3px solid var(--green)}
+.res-cell.tipo-cafeout{background:rgba(74,42,107,.5);border-left:3px solid #a78bfa}
+.res-cell .rc-tipo{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.res-cell .rc-nome{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.res-cell .rc-info{font-size:10px;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.res-cell .rc-badge{background:var(--surf2);padding:1px 5px;border-radius:4px;font-size:9px}
+.res-cell .rc-apagar{font-size:10px;color:var(--yellow);margin-top:3px;cursor:pointer}
+.res-cell .rc-apagar:hover{color:#fff}
+
+/* Modal A pagar */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--surf);border:1px solid var(--border);border-radius:16px;padding:24px;width:340px;max-width:90vw}
+.modal-box h3{margin-bottom:16px;font-size:16px}
+.modal-box input,.modal-box textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surf2);color:var(--text);font-size:13px;outline:none;margin-bottom:10px}
+.modal-box textarea{resize:vertical;min-height:80px}
+.modal-btns{display:flex;gap:8px}
+.modal-btns button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600}
+.btn-save{background:var(--accent2);color:#fff}
+.btn-cancel{background:var(--surf2);color:var(--text)}
+
+/* Sem reservas */
+.sem-res{text-align:center;padding:60px 20px;color:var(--muted)}
+/* Abas */
+.tab-bar{background:var(--surf);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0}
+.tab-btn{padding:12px 20px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .2s}
+.tab-btn.on{color:var(--accent2);border-bottom-color:var(--accent2)}
+/* Gastos */
+.gastos-wrap{padding:16px 20px}
+.g-section{margin-bottom:24px}
+.g-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.g-card{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.chart-wrap{position:relative;height:280px}
+.mes-sel{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.mes-sel button{padding:5px 12px;border-radius:16px;border:1px solid var(--border);background:var(--surf2);color:var(--muted);cursor:pointer;font-size:11px;transition:all .2s}
+.mes-sel button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* Tabela gastos */
+table.gtbl{width:100%;border-collapse:collapse;font-size:11px}
+table.gtbl th{background:var(--surf2);border:1px solid var(--border);padding:6px 8px;color:var(--muted);font-weight:600;white-space:nowrap;text-align:right}
+table.gtbl th:first-child{text-align:left;position:sticky;left:0;z-index:10;background:var(--surf2);min-width:160px;box-shadow:2px 0 4px rgba(0,0,0,.3)}
+table.gtbl th:nth-child(2){text-align:left;position:sticky;left:160px;z-index:10;background:var(--surf2);min-width:70px;box-shadow:2px 0 4px rgba(0,0,0,.3)}
+table.gtbl td{border:1px solid var(--border);padding:5px 8px;text-align:right;white-space:nowrap}
+table.gtbl td:first-child{text-align:left;position:sticky;left:0;z-index:5;background:var(--surf);min-width:160px;box-shadow:2px 0 4px rgba(0,0,0,.2)}
+table.gtbl td:nth-child(2){text-align:left;position:sticky;left:160px;z-index:5;background:var(--surf);min-width:70px;box-shadow:2px 0 4px rgba(0,0,0,.2)}
+table.gtbl tr.total-row td:first-child,table.gtbl tr.total-row td:nth-child(2){background:var(--surf2)}
+table.gtbl tr.opex-row td:first-child{border-left:3px solid var(--accent2)}
+table.gtbl tr.capex-row td:first-child{border-left:3px solid var(--yellow)}
+table.gtbl tr.total-row{font-weight:700;background:rgba(255,255,255,.03)}
+.tag-opex{background:rgba(52,199,123,.15);color:var(--green);padding:1px 6px;border-radius:4px;font-size:9px}
+.tag-capex{background:rgba(240,180,41,.15);color:var(--yellow);padding:1px 6px;border-radius:4px;font-size:9px}
+.delta-pos{color:var(--red)}
+.delta-neg{color:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- Senha -->
+<div id="senha-overlay">
+  <div class="senha-box">
+    <div style="font-size:48px;margin-bottom:12px">🏡</div>
+    <h1>HSA Operações</h1>
+    <p>Painel de Operações · Reservas</p>
+    <input type="password" id="senha-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')verificarSenha()">
+    <button onclick="verificarSenha()">Entrar →</button>
+    <div class="erro" id="senha-erro"></div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-msg">Carregando reservas...</div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">🏡</div>
+  <div>
+    <div class="header-title">HSA · Operações</div>
+    <div class="header-sub">Painel de Operações · Reservas</div>
+  </div>
+  <div class="header-status" id="status-bar">Aguardando...</div>
+</header>
+
+<!-- Abas -->
+<div class="tab-bar">
+  <button class="tab-btn on" onclick="setTab('reservas',this)">📅 Reservas</button>
+  <button class="tab-btn" onclick="setTab('gastos',this)">💰 Gastos</button>
+</div>
+
+<div id="tab-reservas">
+
+<!-- Nav meses -->
+<div class="mes-nav" id="mes-nav">
+  <button class="nav-arrow" onclick="navMes(-1)">‹</button>
+  <button class="nav-arrow" onclick="navMes(1)">›</button>
+</div>
+
+<!-- Legenda -->
+<div class="legenda">
+  <div class="leg-item"><div class="leg-dot" style="background:rgba(26,58,107,.8);border-left:3px solid #5B8DEF"></div> Check-in</div>
+  <div class="leg-item"><div class="leg-dot" style="background:rgba(107,26,26,.7);border-left:3px solid var(--red)"></div> Check-out</div>
+
+
+</div>
+
+<!-- Grade -->
+<div class="grade-wrap" id="grade-wrap">
+  <div class="sem-res">Carregando dados...</div>
+</div>
+
+</div><!-- /tab-reservas -->
+
+<!-- Painel Gastos -->
+<div id="tab-gastos" style="display:none">
+  <div class="gastos-wrap">
+
+    <!-- Gráfico 1: Mensal 2025 vs 2026 -->
+    <div class="g-card">
+      <div class="g-title">📊 OPEX + CAPEX por Mês · 2025 vs 2026</div>
+      <div class="chart-wrap"><canvas id="cr_gastos_mensal"></canvas></div>
+    </div>
+
+    <!-- Gráfico 2: Por mês selecionado -->
+    <div class="g-card">
+      <div class="g-title">🔍 Categorias por Mês</div>
+      <div class="mes-sel" id="gastos-mes-sel"></div>
+      <div class="chart-wrap" style="height:320px"><canvas id="cr_gastos_cat"></canvas></div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="g-card" style="overflow-x:auto">
+      <div class="g-title">📋 Tabela de Categorias · Acumulado Jan–Mar 2026 vs 2025</div>
+      <div id="gastos-tabela"></div>
+    </div>
+
+  </div>
+</div><!-- /tab-gastos -->
+
+<!-- Modal Extras Checkout -->
+<div class="modal-overlay" id="modal-checkout">
+  <div class="modal-box" style="width:400px;max-width:95vw">
+    <h3 id="checkout-titulo">Extras · Checkout</h3>
+    <div id="checkout-info" style="font-size:12px;color:var(--muted);margin-bottom:14px"></div>
+    <div id="checkout-fields"></div>
+    <div class="modal-btns" style="margin-top:12px">
+      <button class="btn-cancel" onclick="fecharModalCheckout()">Cancelar</button>
+      <button class="btn-save" onclick="salvarCheckout()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+const SENHA_HASH = btoa('Clag#2026');
+const DBX_APP_KEY    = 't9mc3s9ugrc93m0';
+const DBX_APP_SECRET = 'tzoxlevzfu4o9x7';
+const DBX_REFRESH    = 'YyymmuyHYqwAAAAAAAAAAUfgijZMK3bc4OIseueVt7JpZQjjfIh398AB9tq6FE2F';
+const DBX_EXCEL_PATH = '/Monte Verde + TV/Gerencial/Gerencial HSA_2026_v1 (Oficial).xlsx';
+const DBX_APAGAR_PATH = '/Monte Verde + TV/Gerencial/hsa_operacoes_dados.json';
+
+const CHALES = ['Charmey','Cheverny','Monblanc','Everest','Martigny','Monviso','Chamonix'];
+const CHALES_REFORMA = ['Chamonix'];
+const MESES_LABELS = ['Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_IDX = [3,4,5,6,7,8,9,10,11]; // índices 0-based
+const STATUS_OK = ['Concluída','Confirmada e Paga Parcial','Concluída - ag. Pgto agência',
+  'Confirmada e Paga 100%','Confirmada e Não Paga','Confirmada e CC Inválido',
+  'Concluída - No Show','Em cotação'];
+
+let dbxToken = '';
+let reservas = []; // lista processada
+let apagar = {}; // { "chale|resNum|data": { valor, obs } }
+let mesSel = 3; // abril = índice 3
+let modalKey = '';
+
+// ═══════════════════════════════════════════════════════
+// SENHA
+// ═══════════════════════════════════════════════════════
+function verificarSenha() {
+  const v = document.getElementById('senha-input').value;
+  if (btoa(v) === SENHA_HASH) {
+    localStorage.setItem('hsa_ops_auth','1');
+    document.getElementById('senha-overlay').style.display = 'none';
+    document.getElementById('loading-overlay').style.display = 'flex';
+    iniciar();
+  } else {
+    document.getElementById('senha-erro').textContent = 'Senha incorreta';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// DROPBOX
+// ═══════════════════════════════════════════════════════
+async function dbxToken_() {
+  const r = await fetch('https://api.dropboxapi.com/oauth2/token', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:`grant_type=refresh_token&refresh_token=${DBX_REFRESH}&client_id=${DBX_APP_KEY}&client_secret=${DBX_APP_SECRET}`
+  });
+  const d = await r.json();
+  dbxToken = d.access_token;
+}
+
+async function dbxBaixarExcel() {
+  setMsg('Baixando planilha...');
+  const r = await fetch('https://content.dropboxapi.com/2/files/download', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+dbxToken,'Dropbox-API-Arg':JSON.stringify({path:DBX_EXCEL_PATH})}
+  });
+  if (!r.ok) throw new Error('Erro ao baixar Excel: '+r.status);
+  return await r.arrayBuffer();
+}
+
+async function dbxBaixarApagar() {
+  try {
+    const r = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+dbxToken,'Dropbox-API-Arg':JSON.stringify({path:DBX_APAGAR_PATH})}
+    });
+    if (!r.ok) return {};
+    const txt = await r.text();
+    return JSON.parse(txt);
+  } catch(e) { return {}; }
+}
+
+async function dbxSalvarApagar() {
+  const json = JSON.stringify(apagar, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  await fetch('https://content.dropboxapi.com/2/files/upload', {
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+dbxToken,
+      'Content-Type':'application/octet-stream',
+      'Dropbox-API-Arg':JSON.stringify({path:DBX_APAGAR_PATH,mode:'overwrite',mute:true})
+    },
+    body: blob
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// PARSERS
+// ═══════════════════════════════════════════════════════
+function parseMoeda(v) {
+  if (!v) return 0;
+  if (typeof v === 'number') return v;
+  let s = String(v).replace(/R\$\s*/g,'').trim();
+  if (s.includes(',')&&s.includes('.')) {
+    s = s.lastIndexOf('.')>s.lastIndexOf(',')?s.replace(/,/g,''):s.replace(/\./g,'').replace(',','.');
+  } else if (s.includes(',')) {
+    s = s.split(',')[1]?.length===3?s.replace(',',''):s.replace(',','.');
+  }
+  return parseFloat(s)||0;
+}
+
+function excelDateToJS(v) {
+  if (!v) return null;
+  if (typeof v === 'number') {
+    const d = new Date(Math.round((v-25569)*86400*1000));
+    d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+    return d;
+  }
+  if (typeof v === 'string') {
+    // MM/DD/YY ou DD/MM/YYYY
+    const m1 = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (m1) {
+      const y = m1[3].length===2?2000+parseInt(m1[3]):parseInt(m1[3]);
+      // Formato M/D/YY do Dropbox
+      return new Date(y, parseInt(m1[1])-1, parseInt(m1[2]));
+    }
+  }
+  const d = new Date(v);
+  return isNaN(d)?null:d;
+}
+
+function toDateKey(d) {
+  if (!d) return '';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function getCanal(raw) {
+  const o = String(raw||'').trim().toUpperCase();
+  if (o.includes('BOOKING')) return 'Booking';
+  if (o.includes('EXPEDIA')||o.includes('CVC')||o.includes('VOOTUR')||
+      o.includes('MALA')||o.includes('BESTBUY')||o.includes('WEST')||
+      o.includes('INCOMUM')||o.includes('AGÊNCIA')||o.includes('AGENCIA')) return 'Agência';
+  if (o.includes('LEONARDO')) return 'Direto - Leonardo';
+  return 'Direto';
+}
+
+function getChale(raw) {
+  if (!raw) return '';
+  const m = String(raw).match(/\]\s*(.+)/);
+  return m ? m[1].trim() : String(raw).trim();
+}
+
+// ═══════════════════════════════════════════════════════
+// PROCESSAR RESERVAS
+// ═══════════════════════════════════════════════════════
+function processarVendas(wb) {
+  setMsg('Processando reservas...');
+  const ws = wb.Sheets['Vendas_BD'];
+  if (!ws) throw new Error('Aba Vendas_BD não encontrada');
+  const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+  if (!rows.length) return;
+
+  const keys = Object.keys(rows[0]);
+  const kEntrada  = keys.find(k=>k.includes('Entrada'))||'Entrada';
+  const kSaida    = keys.find(k=>k.includes('Saída')||k.includes('Saida'))||'Saída';
+  const kStatus   = keys.find(k=>k.includes('Status'))||'Status';
+  const kChale    = keys.find(k=>k.includes('Chalé')||k.includes('Chale'))||'Chalé';
+  const kPax      = keys.find(k=>k.includes('PAX')||k.includes('Hóspedes'))||'# PAX';
+  const kNome     = keys.find(k=>k.trim()==='Hóspede'||k.trim()==='Hospede')||'Hóspede';
+  const kTel      = keys.find(k=>k.includes('Telefone'))||'Telefone';
+  const kPets     = keys.find(k=>k.trim()==='Pets')||'Pets';
+  const kExtra1   = keys.find(k=>k.includes('Extra 1'))||'Extra 1';
+  const kExtra2   = keys.find(k=>k.includes('Extra 2'))||'Extra 2';
+  const kExtra3   = keys.find(k=>k.includes('Extra 3'))||'Extra 3';
+  const kObs      = keys.find(k=>k.includes('Observa'))||'Observações';
+  const kOrigem   = keys.find(k=>k.trim()==='Origem')||'Origem';
+  const kCriancas = keys.find(k=>k.includes('Crian')||k.includes('Crianç'))||'Crianças';
+  const kAPagar   = keys.find(k=>k.replace(/[\r\n]/g,'').trim()==='A Pagar')||'A Pagar';
+  const kRes      = keys.find(k=>k.includes('Reserva')||k.includes('#'))||'# Reserva';
+
+  reservas = [];
+  rows.forEach(r => {
+    const status = String(r[kStatus]||'');
+    if (!STATUS_OK.includes(status)) return;
+
+    const dtE = excelDateToJS(r[kEntrada]);
+    const dtS = excelDateToJS(r[kSaida]);
+    if (!dtE || !dtS) return;
+
+    // Filtrar apenas abr-dez 2026
+    const ano = dtE.getFullYear();
+    if (ano !== 2026) return;
+    const mesE = dtE.getMonth();
+    if (mesE < 3) return; // antes de abril
+
+    const chale = getChale(r[kChale]);
+    if (!CHALES.includes(chale)) return;
+
+    const pax   = parseInt(r[kPax])||0;
+    const nome  = String(r[kNome]||'').trim();
+    const tel   = String(r[kTel]||'').trim();
+    const pets  = parseInt(r[kPets])||0;
+    const extra1= String(r[kExtra1]||'').trim();
+    const extra2= String(r[kExtra2]||'').trim();
+    const extra3= String(r[kExtra3]||'').trim();
+    const obs   = String(r[kObs]||'').trim();
+    const resNum= String(r[kRes]||'').trim();
+
+    const extras = [extra1,extra2,extra3].filter(e=>e&&!['','-','0','NA','N/A','na','n/a','Não','nao','NÃO'].includes(e.trim()));
+    const canal = getCanal(r[kOrigem]);
+    const criancas = String(r[kCriancas]||'').trim();
+
+    // Gerar entradas para cada dia da reserva
+    const cur = new Date(dtE);
+    while (cur <= dtS) {
+      const dateKey = toDateKey(cur);
+      const mesAtual = cur.getMonth();
+      const diaE = cur.getTime()===dtE.getTime();
+      const diaS = cur.getTime()===dtS.getTime();
+
+      let tipo, horario, qtdCafe;
+      if (diaE && diaS) {
+        // Entrada e saída no mesmo dia: mostrar IN
+        tipo = 'IN'; horario = '15h'; qtdCafe = 0;
+      } else if (diaE) {
+        tipo = 'IN'; horario = '15h'; qtdCafe = 0;
+      } else if (diaS) {
+        tipo = 'CAFÉ + OUT'; horario = '12h'; qtdCafe = pax;
+      } else {
+        tipo = 'CAFÉ'; horario = 'Confirmar'; qtdCafe = pax;
+      }
+
+      // Apenas abr-dez 2026
+      if (cur.getFullYear()===2026 && mesAtual>=3) {
+        reservas.push({
+          dateKey, chale, tipo, horario, pax, qtdCafe,
+          nome, tel, pets, extras, obs, resNum, canal, criancas,
+          aPagarExcel: String(r[kAPagar]||'').trim(),
+          dtEntrada: toDateKey(dtE), dtSaida: toDateKey(dtS)
+        });
+      }
+
+      cur.setDate(cur.getDate()+1);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDERIZAR GRADE
+// ═══════════════════════════════════════════════════════
+function getDiasDoMes(mes, ano) {
+  return new Date(ano, mes+1, 0).getDate();
+}
+
+function renderGrade() {
+  const wrap = document.getElementById('grade-wrap');
+  const hoje = new Date();
+  const ano = 2026;
+  const nDias = getDiasDoMes(mesSel, ano);
+  const dias = Array.from({length:nDias},(_,i)=>i+1);
+
+  // Filtrar reservas do mês
+  const prefix = `${ano}-${String(mesSel+1).padStart(2,'0')}-`;
+  const resMes = reservas.filter(r=>r.dateKey.startsWith(prefix));
+
+  // Dias da semana
+  const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  let html = `<table class="grade">
+  <thead><tr>
+    <th class="chale-col">Chalé</th>`;
+
+  dias.forEach(d => {
+    const dt = new Date(ano, mesSel, d);
+    const isHoje = dt.toDateString()===hoje.toDateString();
+    const ds = diasSemana[dt.getDay()];
+    const isWeekend = dt.getDay()===0||dt.getDay()===6;
+    html += `<th class="dia-col${isHoje?' dia-hoje':''}" style="${isWeekend?'background:rgba(255,255,255,.03)':''}">
+      <div>${d}</div><div style="font-size:9px;font-weight:normal;color:${isHoje?'var(--green)':'var(--muted)'}">${ds}</div>
+    </th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  CHALES.forEach(chale => {
+    const emReforma = CHALES_REFORMA.includes(chale);
+    const chaleLabel = emReforma 
+      ? `${chale} <span style="font-size:9px;color:var(--yellow);background:rgba(240,180,41,.15);padding:1px 5px;border-radius:4px;font-weight:normal">🔧 reforma</span>`
+      : chale;
+    const chaleStyle = emReforma ? 'opacity:.6;' : '';
+    html += `<tr style="${chaleStyle}"><td class="chale-name">${chaleLabel}</td>`;
+    dias.forEach(d => {
+      const dateKey = `${ano}-${String(mesSel+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dt = new Date(ano, mesSel, d);
+      const isHoje = dt.toDateString()===hoje.toDateString();
+      const isWeekend = dt.getDay()===0||dt.getDay()===6;
+      const celRes = resMes.filter(r=>r.dateKey===dateKey&&r.chale===chale);
+
+      if (celRes.length===0) {
+        const reformaStyle = emReforma ? 'background:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(240,180,41,.04) 4px,rgba(240,180,41,.04) 8px);' : '';
+        html += `<td class="dia-cell vazio${isHoje?' hoje':''}" style="${isWeekend?'background:rgba(255,255,255,.01)':''}${reformaStyle}"></td>`;
+      } else {
+        html += `<td class="dia-cell${isHoje?' hoje':''}" style="${isWeekend?'background:rgba(255,255,255,.02)':''}">`;
+        celRes.forEach(res => {
+          const aKey = `${chale}|${res.resNum}|${res.dtEntrada}`;
+          const ap = apagar[aKey]||{valor:'',obs:''};
+          const tipoClass = res.tipo==='IN'?'tipo-in':res.tipo==='CAFÉ'?'tipo-cafe':'tipo-out';
+          const isCafe = res.tipo==='CAFÉ';
+          const isIn   = res.tipo==='IN';
+          const isOut  = res.tipo==='OUT'||res.tipo==='CAFÉ + OUT';
+          const extraStr = res.extras.length>0 ? res.extras.join(' + ') : 'Sem extras';
+          const tipoLabel = res.tipo==='CAFÉ'?'☕ Café':res.tipo==='IN'?'▶ Check-in':'◀ Check-out';
+          const canalColor = res.canal==='Booking'?'#5B8DEF':res.canal==='Agência'?'#F0B429':'#34C77B';
+          const canalDot = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${canalColor};margin-right:3px;vertical-align:middle"></span>`;
+          html += `<div class="res-cell ${tipoClass}" onclick="abrirModal('${aKey}','${res.nome}','${chale}','${dateKey}')">`;
+          // Nome sempre na 1a linha
+          html += `<div class="rc-nome">${res.nome||'—'}</div>`;
+          // Linha 2: tipo só em IN/OUT (café não mostra label)
+          if (isIn||isOut) {
+            html += `<div class="rc-tipo">${tipoLabel} · ${res.horario}</div>`;
+          }
+          // Badges — sempre mostrar
+          html += `<div class="rc-info">`;
+          if (res.pax)     html += `<span class="rc-badge">👥 ${res.pax}</span>`;
+          if (res.qtdCafe) html += `<span class="rc-badge">☕ ${res.qtdCafe}</span>`;
+          if (res.pets)    html += `<span class="rc-badge">🐾 ${res.pets}</span>`;
+          if (res.criancas)html += `<span class="rc-badge">🧒 ${res.criancas}</span>`;
+          html += `</div>`;
+          // Detalhes apenas em check-in/out
+          if (isIn||isOut) {
+            if (isIn) html += `<div style="font-size:9px;color:var(--muted);margin-top:2px">${canalDot}${res.canal}</div>`;
+            if (res.tel&&isIn) html += `<div style="font-size:9px;color:var(--muted)">📞 ${res.tel}</div>`;
+            html += `<div style="font-size:9px;color:${res.extras.length>0?'var(--text)':'var(--muted)'};margin-top:1px">🎁 ${extraStr}</div>`;
+            if (res.obs) html += `<div style="font-size:9px;color:var(--muted);margin-top:1px">📝 ${res.obs.slice(0,50)}</div>`;
+          }
+          // A pagar do Excel — apenas no check-in (somente leitura)
+          if (isIn && res.aPagarExcel) {
+            html += `<div style="font-size:10px;color:var(--yellow);margin-top:3px">💰 ${res.aPagarExcel}</div>`;
+          }
+          // Extras checkout — apenas no checkout (editável)
+          if (isOut) {
+            const ck = apagar[aKey]||{};
+            const extItems = [
+              {k:'consumacao',l:'Consumação'},
+              {k:'kits',l:'Kits'},
+              {k:'ofuro',l:'Ofurô/Sauna'},
+              {k:'massagem',l:'Massagem'},
+            ];
+            const temExtras = extItems.some(e=>ck[e.k+'_val']);
+            html += `<div style="margin-top:4px;border-top:1px solid rgba(255,255,255,.1);padding-top:4px">
+              <div style="font-size:9px;color:var(--muted);margin-bottom:3px">EXTRAS CHECKOUT</div>`;
+            extItems.forEach(e=>{
+              const val = ck[e.k+'_val']||'';
+              const pgto= ck[e.k+'_pgto']||'';
+              if(val||pgto) {
+                html+=`<div style="font-size:9px;margin-bottom:1px">
+                  <span style="color:var(--muted)">${e.l}:</span>
+                  <span style="color:var(--text)">${val?'R$'+val:''} ${pgto?'('+pgto+')':''}</span>
+                </div>`;
+              }
+            });
+            html += `<div style="font-size:9px;color:var(--accent2);cursor:pointer;margin-top:3px" 
+              onclick="event.stopPropagation();abrirModalCheckout('${aKey}','${res.nome}','${chale}','${dateKey}')">
+              ✏️ ${temExtras?'Editar':'Preencher'} extras</div>`;
+            html += `</div>`;
+          }
+          html += `</div>`;
+        });
+        html += `</td>`;
+      }
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>`;
+  wrap.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════
+// NAV MESES
+// ═══════════════════════════════════════════════════════
+function renderNavMeses() {
+  const nav = document.getElementById('mes-nav');
+  const btns = MESES_LABELS.map((m,i)=>
+    `<button onclick="setMes(${MESES_IDX[i]},this)" class="${MESES_IDX[i]===mesSel?'on':''}">${m}</button>`
+  ).join('');
+  nav.innerHTML = `<button class="nav-arrow" onclick="navMes(-1)">‹</button>${btns}<button class="nav-arrow" onclick="navMes(1)">›</button>`;
+}
+
+function setMes(mes, btn) {
+  mesSel = mes;
+  document.querySelectorAll('.mes-nav button:not(.nav-arrow)').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderGrade();
+}
+
+function navMes(delta) {
+  const idx = MESES_IDX.indexOf(mesSel);
+  const newIdx = Math.max(0, Math.min(MESES_IDX.length-1, idx+delta));
+  mesSel = MESES_IDX[newIdx];
+  renderNavMeses();
+  renderGrade();
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL A PAGAR
+// ═══════════════════════════════════════════════════════
+function abrirModal(key, nome, chale, data) {
+  modalKey = key;
+  const ap = apagar[key]||{valor:'',obs:''};
+  document.getElementById('modal-titulo').textContent = `A pagar · ${chale}`;
+  document.getElementById('modal-info').textContent = `${nome} · ${data}`;
+  document.getElementById('modal-valor').value = ap.valor||'';
+  document.getElementById('modal-obs').value = ap.obs||'';
+  document.getElementById('modal-apagar').classList.add('show');
+}
+
+function fecharModal() {
+  document.getElementById('modal-apagar').classList.remove('show');
+  modalKey = '';
+}
+
+async function salvarApagar() {
+  const valor = document.getElementById('modal-valor').value.trim();
+  const obs   = document.getElementById('modal-obs').value.trim();
+  if (!apagar[modalKey]) apagar[modalKey] = {};
+  apagar[modalKey].valor = valor;
+  apagar[modalKey].obs   = obs;
+  fecharModal();
+  renderGrade();
+  setStatus('💾 Salvando...');
+  try { await dbxSalvarApagar(); setStatus('✅ Salvo!'); }
+  catch(e) { setStatus('❌ Erro ao salvar'); }
+}
+
+// Modal Checkout Extras
+const CHECKOUT_ITEMS = [
+  {k:'consumacao', l:'Consumação'},
+  {k:'kits',       l:'Kits'},
+  {k:'ofuro',      l:'Ofurô / Sauna'},
+  {k:'massagem',   l:'Massagem'},
+];
+const FORMAS_PGTO = ['PIX','CC AV','CC 2-6x','CD','Dinheiro'];
+
+function abrirModalCheckout(key, nome, chale, data) {
+  modalKey = key;
+  const ck = apagar[key]||{};
+  document.getElementById('checkout-titulo').textContent = `Extras Checkout · ${chale}`;
+  document.getElementById('checkout-info').textContent   = `${nome} · ${data}`;
+
+  let fields = '';
+  CHECKOUT_ITEMS.forEach(item=>{
+    const val  = ck[item.k+'_val'] ||'';
+    const pgto = ck[item.k+'_pgto']||'';
+    fields += `<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:5px">${item.l}</div>
+      <div style="display:flex;gap:6px">
+        <input type="number" id="ck_${item.k}_val" placeholder="Valor R$" value="${val}"
+          style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surf2);color:var(--text);font-size:12px;outline:none">
+        <select id="ck_${item.k}_pgto"
+          style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surf2);color:var(--text);font-size:12px;outline:none">
+          <option value="">Forma pgto</option>
+          ${FORMAS_PGTO.map(f=>`<option value="${f}" ${pgto===f?'selected':''}>${f}</option>`).join('')}
+        </select>
+      </div>
+    </div>`;
+  });
+  document.getElementById('checkout-fields').innerHTML = fields;
+  document.getElementById('modal-checkout').classList.add('show');
+}
+
+function fecharModalCheckout() {
+  document.getElementById('modal-checkout').classList.remove('show');
+  modalKey = '';
+}
+
+async function salvarCheckout() {
+  if (!apagar[modalKey]) apagar[modalKey] = {};
+  CHECKOUT_ITEMS.forEach(item=>{
+    const val  = document.getElementById('ck_'+item.k+'_val')?.value.trim()||'';
+    const pgto = document.getElementById('ck_'+item.k+'_pgto')?.value||'';
+    apagar[modalKey][item.k+'_val']  = val;
+    apagar[modalKey][item.k+'_pgto'] = pgto;
+  });
+  fecharModalCheckout();
+  renderGrade();
+  setStatus('💾 Salvando...');
+  try { await dbxSalvarApagar(); setStatus('✅ Extras salvos!'); }
+  catch(e) { setStatus('❌ Erro ao salvar'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function setMsg(m) { document.getElementById('loading-msg').textContent = m; }
+function setStatus(m) { document.getElementById('status-bar').textContent = m; }
+function esconderLoading() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+// INICIAR
+// ═══════════════════════════════════════════════════════
+async function iniciar() {
+  try {
+    setMsg('Conectando ao Dropbox...');
+    await dbxToken_();
+    setMsg('Baixando planilha...');
+    const buf = await dbxBaixarExcel();
+    const wb = XLSX.read(buf, {type:'array', cellDates:false});
+    processarVendas(wb);
+    processarGastos(wb);
+    setMsg('Carregando "A pagar"...');
+    apagar = await dbxBaixarApagar();
+    // Definir mês atual (se estiver em abr-dez 2026)
+    const hoje = new Date();
+    if (hoje.getFullYear()===2026 && hoje.getMonth()>=3) {
+      mesSel = hoje.getMonth();
+    }
+    renderNavMeses();
+    renderGrade();
+    esconderLoading();
+    setStatus('✅ ' + reservas.length + ' dias carregados · ' + new Date().toLocaleTimeString('pt-BR'));
+  } catch(e) {
+    esconderLoading();
+    setStatus('❌ ' + e.message);
+    document.getElementById('grade-wrap').innerHTML = `<div class="sem-res">❌ Erro: ${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ABAS
+// ═══════════════════════════════════════════════════════
+function setTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  document.getElementById('tab-reservas').style.display = tab==='reservas'?'block':'none';
+  document.getElementById('tab-gastos').style.display   = tab==='gastos'?'block':'none';
+  if(tab==='gastos' && gastosCarregados) renderGastos();
+}
+
+// ═══════════════════════════════════════════════════════
+// DADOS DE GASTOS
+// ═══════════════════════════════════════════════════════
+let gastosData = []; // linhas cruas
+let gastosCarregados = false;
+let gasMesSel = 0; // Jan=0
+const MESES_FECHADOS_26 = 3; // Jan-Mar
+const TIPOS_GASTO = ['OPEX','CAPEX'];
+const ML = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function parseGasto(val) {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  let s = String(val).trim().replace(/^\s*R\$\s*/,'').trim();
+  const neg = s.replace(/[R\$\s]/g,'').startsWith('-');
+  s = s.replace(/R\$\s*/g,'').replace(/-/g,'').trim();
+  if (s.includes(',')&&s.includes('.')) {
+    s = s.lastIndexOf('.')>s.lastIndexOf(',')?s.replace(/,/g,''):s.replace(/\./g,'').replace(',','.');
+  } else if (s.includes(',')) {
+    s = s.split(',')[1]?.length===3?s.replace(',',''):s.replace(',','.');
+  }
+  const r = parseFloat(s)||0;
+  return neg?-r:r;
+}
+
+function processarGastos(wb) {
+  const ws = wb.Sheets['BD_Gastos'];
+  if (!ws) return;
+  const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const kTipo = keys.find(k=>k.trim()==='Tipo')||'Tipo';
+  const kCat  = keys.find(k=>k.trim()==='Categoria')||'Categoria';
+  const kVal  = keys.find(k=>k.trim()==='Valor (R$)')||'Valor (R$)';
+  const kDt   = keys.find(k=>k.includes('Aj.'))||keys.find(k=>k.includes('Transação'))||'Data Transação Aj.';
+  gastosData = [];
+  rows.forEach(r => {
+    const tipo = String(r[kTipo]||'').trim();
+    if (!TIPOS_GASTO.includes(tipo)) return;
+    const dtRaw = r[kDt];
+    if (!dtRaw) return;
+    const dt = excelDateToJS(dtRaw);
+    if (!dt||isNaN(dt)) return;
+    const ano = dt.getFullYear();
+    if (ano!==2025&&ano!==2026) return;
+    const mes = dt.getMonth();
+    const val = parseGasto(r[kVal]);
+    if (!val) return;
+    const cat = String(r[kCat]||'Outros').trim();
+    gastosData.push({tipo, cat, val, mes, ano});
+  });
+  gastosCarregados = true;
+}
+
+// Agregar gastos
+function agregarGastos(ano, mes=null, tipo=null) {
+  // {cat: {OPEX:0, CAPEX:0}}
+  const out = {};
+  gastosData.forEach(g => {
+    if (g.ano!==ano) return;
+    if (mes!==null && g.mes!==mes) return;
+    if (tipo!==null && g.tipo!==tipo) return;
+    if (!out[g.cat]) out[g.cat]={OPEX:0,CAPEX:0};
+    out[g.cat][g.tipo] = (out[g.cat][g.tipo]||0)+g.val;
+  });
+  return out;
+}
+
+function agregarPorMes(ano, tipo=null) {
+  // Array 12 meses
+  const out = Array(12).fill(0);
+  gastosData.forEach(g => {
+    if (g.ano!==ano) return;
+    if (tipo!==null && g.tipo!==tipo) return;
+    out[g.mes]+=g.val;
+  });
+  return out;
+}
+
+const fK = v => {
+  if (Math.abs(v)>=1000) return 'R$'+(v/1000).toFixed(1)+'k';
+  return 'R$'+Math.round(v);
+};
+
+let _charts = {};
+function mk(id, cfg) {
+  if (_charts[id]) { _charts[id].destroy(); }
+  const el = document.getElementById(id);
+  if (!el) return;
+  _charts[id] = new Chart(el.getContext('2d'), cfg);
+}
+
+const GR = {color:'rgba(255,255,255,.05)'};
+const NL = {display:false};
+
+// ═══════════════════════════════════════════════════════
+// RENDER GASTOS
+// ═══════════════════════════════════════════════════════
+function renderGastos() {
+  renderGastosMenusal();
+  renderGastosCat();
+  renderGastosTabela();
+}
+
+function renderGastosMenusal() {
+  const opex25 = agregarPorMes(2025,'OPEX');
+  const capex25 = agregarPorMes(2025,'CAPEX');
+  const opex26 = agregarPorMes(2026,'OPEX');
+  const capex26 = agregarPorMes(2026,'CAPEX');
+
+  mk('cr_gastos_mensal', {type:'bar', data:{
+    labels: ML,
+    datasets:[
+      {label:'OPEX 2025', data:opex25, backgroundColor:'rgba(240,180,41,.6)', stack:'2025', borderRadius:3},
+      {label:'CAPEX 2025',data:capex25,backgroundColor:'rgba(240,180,41,.3)', stack:'2025', borderRadius:3},
+      {label:'OPEX 2026', data:opex26, backgroundColor:'rgba(52,199,123,.7)',  stack:'2026', borderRadius:3},
+      {label:'CAPEX 2026',data:capex26,backgroundColor:'rgba(52,199,123,.35)', stack:'2026', borderRadius:3},
+    ]
+  }, options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#9CA3AF',boxWidth:10}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': '+fK(c.raw)}}},
+    scales:{
+      x:{stacked:true,grid:NL,ticks:{color:'#9CA3AF',font:{size:10}}},
+      y:{stacked:false,grid:GR,ticks:{callback:v=>fK(v),color:'#9CA3AF'}}
+    }}});
+}
+
+const CATS_OCULTAS = ['Salários e Encargos','Plano de Saúde','Cartão Crédito não identificado'];
+
+function renderGastosCat() {
+  const sel = document.getElementById('gastos-mes-sel');
+  if (sel&&!sel.children.length) {
+    sel.innerHTML = ML.map((m,i)=>
+      `<button onclick="setGasMes(${i},this)" class="${i===gasMesSel?'on':''}">${m}</button>`
+    ).join('');
+  }
+
+  const d26 = agregarGastos(2026, gasMesSel);
+
+  // Combinar OPEX+CAPEX, excluir categorias ocultas, ordenar decrescente
+  const cats = Object.keys(d26).filter(c=>!CATS_OCULTAS.includes(c));
+  const sorted = cats.map(c=>({
+    c, total:(d26[c]?.OPEX||0)+(d26[c]?.CAPEX||0)
+  })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
+
+  mk('cr_gastos_cat', {type:'bar', data:{
+    labels: sorted.map(x=>x.c),
+    datasets:[{
+      label:'2026', data:sorted.map(x=>x.total),
+      backgroundColor:'rgba(52,199,123,.75)', borderRadius:4
+    }]
+  }, options:{indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>fK(c.raw)}}},
+    scales:{
+      x:{grid:GR,ticks:{callback:v=>fK(v),color:'#9CA3AF'}},
+      y:{grid:NL,ticks:{color:'#9CA3AF',font:{size:10}}}
+    }}});
+}
+
+function setGasMes(mes, btn) {
+  gasMesSel = mes;
+  document.querySelectorAll('#gastos-mes-sel button').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  renderGastosCat();
+}
+
+function renderGastosTabela() {
+  const wrap = document.getElementById('gastos-tabela');
+  if (!wrap) return;
+
+  // Acumulado Jan-Mar 2026 e 2025
+  const d26acc = agregarGastos(2026, null); // todos meses
+  const d25acc = agregarGastos(2025, null);
+
+  // Filtrar Jan-Mar 2026
+  const d26jm = {};
+  for(let m=0;m<MESES_FECHADOS_26;m++){
+    const g = agregarGastos(2026,m);
+    Object.entries(g).forEach(([c,v])=>{
+      if(!d26jm[c]) d26jm[c]={OPEX:0,CAPEX:0};
+      d26jm[c].OPEX+=v.OPEX||0; d26jm[c].CAPEX+=v.CAPEX||0;
+    });
+  }
+  const d25jm = {};
+  for(let m=0;m<MESES_FECHADOS_26;m++){
+    const g = agregarGastos(2025,m);
+    Object.entries(g).forEach(([c,v])=>{
+      if(!d25jm[c]) d25jm[c]={OPEX:0,CAPEX:0};
+      d25jm[c].OPEX+=v.OPEX||0; d25jm[c].CAPEX+=v.CAPEX||0;
+    });
+  }
+
+  // Por mês 2026
+  const porMes = ML.slice(0,12).map((_,m)=>agregarGastos(2026,m));
+  const porMes25= ML.slice(0,12).map((_,m)=>agregarGastos(2025,m));
+
+  // Categorias únicas ordenadas por acumulado Jan-Mar 2026
+  const cats = [...new Set([...Object.keys(d26jm),...Object.keys(d25jm)])];
+  const sorted = cats.map(c=>{
+    const tot26 = (d26jm[c]?.OPEX||0)+(d26jm[c]?.CAPEX||0);
+    const tipo = d26jm[c]?(d26jm[c].OPEX>=d26jm[c].CAPEX?'OPEX':'CAPEX')
+                :d25jm[c]?(d25jm[c].OPEX>=d25jm[c].CAPEX?'OPEX':'CAPEX'):'OPEX';
+    return {c, tot26, tipo};
+  }).filter(x=>!CATS_OCULTAS.includes(x.c)&&(x.tot26>0||(d25jm[x.c]&&((d25jm[x.c].OPEX||0)+(d25jm[x.c].CAPEX||0))>0)))
+    .sort((a,b)=>b.tot26-a.tot26);
+
+  const deltaFmt = (a,b) => {
+    const d=b-a;
+    const cls = d<=0?'delta-neg':'delta-pos';
+    return `<span class="${cls}">${d>=0?'+':''}${fK(d)}</span>`;
+  };
+
+  // Cabeçalho — apenas meses com dados em 2026
+  const mesesAtivos = ML.map((_,i)=>i).filter(i=>{
+    return gastosData.some(g=>g.ano===2026&&g.mes===i);
+  });
+
+  let html = `<table class="gtbl"><thead><tr>
+    <th>Categoria</th><th>Tipo</th>
+    <th>Acum. Jan–Mar/26</th><th>Ref Jan–Mar/25</th><th>Δ</th>`;
+  mesesAtivos.forEach(m=>{ html+=`<th>${ML[m]}/26</th><th>Ref ${ML[m]}/25</th><th>Δ</th>`; });
+  html+=`</tr></thead><tbody>`;
+
+  // Totais
+  const totJm26 = sorted.reduce((s,x)=>s+(d26jm[x.c]?.OPEX||0)+(d26jm[x.c]?.CAPEX||0),0);
+  const totJm25 = sorted.reduce((s,x)=>s+(d25jm[x.c]?.OPEX||0)+(d25jm[x.c]?.CAPEX||0),0);
+
+  sorted.forEach(({c,tipo})=>{
+    const v26 = (d26jm[c]?.OPEX||0)+(d26jm[c]?.CAPEX||0);
+    const v25 = (d25jm[c]?.OPEX||0)+(d25jm[c]?.CAPEX||0);
+    const rowCls = tipo==='OPEX'?'opex-row':'capex-row';
+    html+=`<tr class="${rowCls}">
+      <td>${c}</td>
+      <td><span class="${tipo==='OPEX'?'tag-opex':'tag-capex'}">${tipo}</span></td>
+      <td>${fK(v26)}</td><td style="color:var(--muted)">${fK(v25)}</td><td>${deltaFmt(v25,v26)}</td>`;
+    mesesAtivos.forEach(m=>{
+      const vm26 = (porMes[m][c]?.OPEX||0)+(porMes[m][c]?.CAPEX||0);
+      const vm25 = (porMes25[m][c]?.OPEX||0)+(porMes25[m][c]?.CAPEX||0);
+      html+=`<td>${vm26>0?fK(vm26):'—'}</td><td style="color:var(--muted)">${vm25>0?fK(vm25):'—'}</td><td>${vm26>0||vm25>0?deltaFmt(vm25,vm26):'—'}</td>`;
+    });
+    html+=`</tr>`;
+  });
+
+  // Linha total
+  html+=`<tr class="total-row">
+    <td><strong>TOTAL</strong></td><td></td>
+    <td><strong>${fK(totJm26)}</strong></td>
+    <td style="color:var(--muted)"><strong>${fK(totJm25)}</strong></td>
+    <td>${deltaFmt(totJm25,totJm26)}</td>`;
+  mesesAtivos.forEach(m=>{
+    const tot26m = gastosData.filter(g=>g.ano===2026&&g.mes===m).reduce((s,g)=>s+g.val,0);
+    const tot25m = gastosData.filter(g=>g.ano===2025&&g.mes===m).reduce((s,g)=>s+g.val,0);
+    html+=`<td><strong>${fK(tot26m)}</strong></td><td style="color:var(--muted)"><strong>${fK(tot25m)}</strong></td><td>${deltaFmt(tot25m,tot26m)}</td>`;
+  });
+  html+=`</tr></tbody></table>`;
+  wrap.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  if (localStorage.getItem('hsa_ops_auth')==='1') {
+    document.getElementById('senha-overlay').style.display = 'none';
+    document.getElementById('loading-overlay').style.display = 'flex';
+    iniciar();
+  }
+});
+</script>
+</body>
+</html>

@@ -213,10 +213,10 @@ table.gtbl tr.total-row{font-weight:700;background:rgba(255,255,255,.03)}
 
 <!-- Abas -->
 <div class="tab-bar">
-  <button class="tab-btn on" onclick="setTab('calendario',this)">📊 Calendário</button>
   <button class="tab-btn" onclick="setTab('reservas',this)">📅 Reservas</button>
-  <button class="tab-btn" onclick="setTab('gastos',this)">💰 Gastos</button>
+  <button class="tab-btn" onclick="setTab('calendario',this)">📊 Calendário</button>
   <button class="tab-btn" onclick="setTab('estoque',this)">📦 Estoque</button>
+  <button class="tab-btn" onclick="setTab('gastos',this)">💰 Gastos</button>
 </div>
 
 <div id="tab-reservas" style="display:none">
@@ -416,7 +416,6 @@ function verificarSenha() {
   if (u) {
     usuarioAtual = u;
     localStorage.setItem('hsa_ops_auth', JSON.stringify({nome:u.nome, hash:u.hash, role:u.role}));
-    registrarAcesso(u.nome);
     document.getElementById('senha-overlay').style.display = 'none';
     document.getElementById('loading-overlay').style.display = 'flex';
     iniciar();
@@ -1296,6 +1295,8 @@ async function iniciar() {
   try {
     setMsg('Conectando ao Dropbox...');
     await dbxToken_();
+    // Registrar acesso agora que o token está disponível
+    if (usuarioAtual) registrarAcesso(usuarioAtual.nome);
     setMsg('Baixando planilha...');
     const buf = await dbxBaixarExcel();
     const wb = XLSX.read(buf, {type:'array', cellDates:false});
@@ -1320,14 +1321,14 @@ async function iniciar() {
     // Esconder loading e mostrar calendário como default
     esconderLoading();
     mostrarNomeUsuario();
-    // Abrir calendário como painel inicial
-    document.getElementById('tab-reservas').style.display   = 'none';
-    document.getElementById('tab-gastos').style.display     = 'none';
-    document.getElementById('tab-calendario').style.display = 'block';
+    // Abrir Reservas como painel inicial
     document.querySelectorAll('.tab-btn').forEach((b,i)=>{
-      b.classList.toggle('on', i===0); // primeiro botão = Calendário
+      b.classList.toggle('on', i===0);
     });
-    initCalendario();
+    ['reservas','calendario','gastos','estoque'].forEach(t=>{
+      const el = document.getElementById('tab-'+t);
+      if(el) el.style.display = t==='reservas'?'block':'none';
+    });
     setStatus('✅ ' + reservas.filter(r=>r.tipo==='IN').length + ' reservas · ' + new Date().toLocaleTimeString('pt-BR'));
   } catch(e) {
     esconderLoading();
